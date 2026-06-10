@@ -25,7 +25,7 @@ public class TooltipHandler {
             return;
         }
 
-        int maxLevel = UpgradeConfig.MAX_LEVEL;
+        int maxLevel = UpgradeConfig.getMaxLevel();
         String stars = "★".repeat(level) + "☆".repeat(maxLevel - level);
 
         event.getToolTip().add(1,

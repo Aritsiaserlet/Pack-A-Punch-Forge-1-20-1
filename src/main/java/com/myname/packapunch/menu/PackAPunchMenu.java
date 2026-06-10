@@ -70,10 +70,8 @@ public class PackAPunchMenu extends AbstractContainerMenu {
     // ─────────────────────────────────────────────────────────
 
     // Machine slot positions (in pixels, relative to GUI background top-left)
-    public static final int GUN_SLOT_X     = 44;
+    public static final int GUN_SLOT_X     = 80;
     public static final int GUN_SLOT_Y     = 35;
-    public static final int PAYMENT_SLOT_X = 114;
-    public static final int PAYMENT_SLOT_Y = 35;
 
     // Player inventory position
     private static final int INV_START_X = 8;
@@ -195,9 +193,7 @@ public class PackAPunchMenu extends AbstractContainerMenu {
         this.addSlot(new SlotItemHandler(machineItems, PackAPunchBlockEntity.SLOT_GUN,
                 GUN_SLOT_X, GUN_SLOT_Y));
 
-        // Slot 1: Payment slot — top-right of machine area
-        this.addSlot(new SlotItemHandler(machineItems, PackAPunchBlockEntity.SLOT_PAYMENT,
-                PAYMENT_SLOT_X, PAYMENT_SLOT_Y));
+
 
         // ── Player Inventory (slots 2–28) ─────────────────────────────────────
         // Three rows of 9 slots. Uses vanilla Slot class (not SlotItemHandler)
