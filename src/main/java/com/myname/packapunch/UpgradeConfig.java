@@ -27,6 +27,7 @@ public class UpgradeConfig {
         return new String[0];
     }
 
+    @SuppressWarnings({"removal", "null"})
     public static Item getItemForLevel(int nextLevel) {
         String[] parts = getParsedLevel(nextLevel);
         if (parts.length >= 2) {
