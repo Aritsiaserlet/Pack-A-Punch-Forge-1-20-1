@@ -189,11 +189,9 @@ public class PackAPunchMenu extends AbstractContainerMenu {
         // SlotItemHandler links the menu slot to a specific slot in our ItemStackHandler.
         // The x,y position tells the Screen where to render the slot graphic.
 
-        // Slot 0: Gun slot — top-left of machine area
+        // Slot 0: Gun slot — centered in machine area
         this.addSlot(new SlotItemHandler(machineItems, PackAPunchBlockEntity.SLOT_GUN,
                 GUN_SLOT_X, GUN_SLOT_Y));
-
-
 
         // ── Player Inventory (slots 2–28) ─────────────────────────────────────
         // Three rows of 9 slots. Uses vanilla Slot class (not SlotItemHandler)

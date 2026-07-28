@@ -12,8 +12,6 @@ import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.event.lifecycle.FMLCommonSetupEvent;
 import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
 import net.minecraftforge.fml.ModLoadingContext;
-import net.minecraftforge.fml.config.ModConfig;
-import com.myname.packapunch.config.MyModConfig;
 import org.slf4j.Logger;
 
 @SuppressWarnings("removal")
@@ -26,9 +24,9 @@ public class PackAPunchMod {
     public PackAPunchMod() {
         IEventBus modEventBus = FMLJavaModLoadingContext.get().getModEventBus();
 
-        ModLoadingContext.get().registerConfig(ModConfig.Type.COMMON, MyModConfig.COMMON_SPEC);
-
         LOGGER.info("[PackAPunch] Mod is loading...");
+
+        ModLoadingContext.get().registerConfig(net.minecraftforge.fml.config.ModConfig.Type.COMMON, com.myname.packapunch.config.ModConfig.SPEC, "packapunch-common.toml");
 
         ModBlocks.BLOCKS.register(modEventBus);
         ModItems.ITEMS.register(modEventBus);

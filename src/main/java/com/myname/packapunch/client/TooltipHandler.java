@@ -5,21 +5,18 @@ import com.myname.packapunch.util.UpgradeNBTUtil;
 import com.myname.packapunch.UpgradeConfig;
 import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
-import net.minecraft.world.entity.EquipmentSlot;
-import net.minecraft.world.entity.ai.attributes.AttributeModifier;
-import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.item.ItemStack;
 import net.minecraftforge.api.distmarker.Dist;
-import net.minecraftforge.event.entity.player.ItemTooltipEvent;
-import net.minecraftforge.client.event.RenderTooltipEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
+import net.minecraftforge.event.entity.player.ItemTooltipEvent;
+import net.minecraft.world.entity.EquipmentSlot;
 
 @SuppressWarnings("null")
 @Mod.EventBusSubscriber(modid = PackAPunchMod.MOD_ID, value = Dist.CLIENT)
 public class TooltipHandler {
 
-    @SubscribeEvent(priority = net.minecraftforge.eventbus.api.EventPriority.LOWEST)
+    @SubscribeEvent
     public static void onItemTooltip(ItemTooltipEvent event) {
         ItemStack stack = event.getItemStack();
 
@@ -28,15 +25,18 @@ public class TooltipHandler {
             return;
         }
 
-        int maxLevel = UpgradeConfig.getMaxLevel();
+        int maxLevel = com.myname.packapunch.UpgradeConfig.getMaxLevel();
         String stars = "★".repeat(level) + "☆".repeat(maxLevel - level);
 
-        event.getToolTip().add(1, Component.literal(stars).withStyle(ChatFormatting.GOLD, ChatFormatting.BOLD));
+        event.getToolTip().add(1,
+                Component.literal(stars)
+                        .withStyle(ChatFormatting.GOLD, ChatFormatting.BOLD));
 
         float multiplier = UpgradeConfig.getMultiplierForLevel(level);
         event.getToolTip().add(2, Component.literal("Damage Bonus: x" + multiplier).withStyle(ChatFormatting.YELLOW));
 
-        // ── 1.20.1 Attribute System ──
+        int insertIndex = 3;
+
         double playerBaseDamage = 1.0;
         double addValue = 0.0;
         double addMultipliedBase = 0.0;
@@ -44,65 +44,67 @@ public class TooltipHandler {
         boolean hasAttackDamageModifier = false;
 
         var modifiers = stack.getAttributeModifiers(EquipmentSlot.MAINHAND);
-        if (modifiers.containsKey(Attributes.ATTACK_DAMAGE)) {
-            for (AttributeModifier modifier : modifiers.get(Attributes.ATTACK_DAMAGE)) {
+        if (!modifiers.isEmpty()) {
+            for (var entry : modifiers.get(net.minecraft.world.entity.ai.attributes.Attributes.ATTACK_DAMAGE)) {
                 hasAttackDamageModifier = true;
-                var op = modifier.getOperation();
-                if (op == AttributeModifier.Operation.ADDITION) {
-                    addValue += modifier.getAmount();
-                } else if (op == AttributeModifier.Operation.MULTIPLY_BASE) {
-                    addMultipliedBase += modifier.getAmount();
-                } else if (op == AttributeModifier.Operation.MULTIPLY_TOTAL) {
-                    addMultipliedTotal += modifier.getAmount();
+                var op = entry.getOperation();
+                if (op == net.minecraft.world.entity.ai.attributes.AttributeModifier.Operation.ADDITION) {
+                    addValue += entry.getAmount();
+                } else if (op == net.minecraft.world.entity.ai.attributes.AttributeModifier.Operation.MULTIPLY_BASE) {
+                    addMultipliedBase += entry.getAmount();
+                } else if (op == net.minecraft.world.entity.ai.attributes.AttributeModifier.Operation.MULTIPLY_TOTAL) {
+                    addMultipliedTotal += entry.getAmount();
                 }
             }
         }
 
-        double vanillaFinalDamage = 0;
         if (hasAttackDamageModifier) {
             double totalBaseDamage = (playerBaseDamage + addValue) * (1.0 + addMultipliedBase) * (1.0 + addMultipliedTotal);
-            vanillaFinalDamage = totalBaseDamage * multiplier;
+            double finalDamage = totalBaseDamage * multiplier;
+            String formattedDamage = String.format("%.1f", finalDamage);
+            event.getToolTip().add(insertIndex++, Component.literal("Current Damage: " + formattedDamage).withStyle(ChatFormatting.GREEN));
         }
 
-        // ── แสกนแก้ตัวเลข Vanilla ──
-        for (int i = 0; i < event.getToolTip().size(); i++) {
-            Component tooltipLine = event.getToolTip().get(i);
-            String rawText = tooltipLine.getString();
-            String strippedText = ChatFormatting.stripFormatting(rawText);
-            if (strippedText == null) strippedText = rawText;
+        event.getToolTip().add(insertIndex++, Component.empty());
+        event.getToolTip().add(insertIndex++, Component.literal("Next Upgrade:").withStyle(ChatFormatting.GRAY));
 
-            if (hasAttackDamageModifier && (strippedText.contains("Attack Damage") || strippedText.contains("ดาเมจโจมตี"))) {
-                String formattedDamage = String.format(java.util.Locale.US, vanillaFinalDamage % 1.0 == 0 ? "%.0f" : "%.1f", vanillaFinalDamage);
-                event.getToolTip().set(i, tooltipLine.copy().append(
-                        Component.literal(" (" + formattedDamage + ")").withStyle(ChatFormatting.GREEN)
-                ));
-                hasAttackDamageModifier = false;
-            }
+        if (UpgradeConfig.isMaxLevel(level)) {
+            event.getToolTip().add(insertIndex,
+                    Component.literal("MAX LEVEL")
+                            .withStyle(ChatFormatting.LIGHT_PURPLE, ChatFormatting.ITALIC));
+        } else {
+            int nextCost = UpgradeConfig.getCostForLevel(level + 1);
+            net.minecraft.world.item.Item reqItem = UpgradeConfig.getItemForLevel(level + 1);
+            String reqItemName = reqItem.getDescription().getString();
+            
+            event.getToolTip().add(insertIndex,
+                    Component.literal(nextCost + " " + reqItemName)
+                            .withStyle(ChatFormatting.AQUA));
         }
     }
 
     @SubscribeEvent(priority = net.minecraftforge.eventbus.api.EventPriority.LOWEST)
-    public static void onGatherComponents(RenderTooltipEvent.GatherComponents event) {
+    public static void onGatherComponents(net.minecraftforge.client.event.RenderTooltipEvent.GatherComponents event) {
         ItemStack stack = event.getItemStack();
         
         int level = UpgradeNBTUtil.getUpgradeLevel(stack);
         if (level <= 0) return;
+        
+        float multiplier = com.myname.packapunch.UpgradeConfig.getMultiplierForLevel(level);
 
-        float multiplier = UpgradeConfig.getMultiplierForLevel(level);
-        java.util.regex.Pattern damagePattern = java.util.regex.Pattern.compile("(?i)(?:Damage|ดาเมจ).*?(\\d+(?:\\.\\d+)?)");
+        java.util.regex.Pattern damagePattern = java.util.regex.Pattern.compile("(?i)(?:Damage|ดาเมจ).*?(\\d+(?:\\.\\d+)?)(?:\\s*[x×*]\\s*(\\d+))?");
         var elements = event.getTooltipElements();
         boolean foundTaczDamage = false;
 
-        // Pass 1: ดักจับคำว่า Damage จากมอดอื่นๆ ทั่วไปที่ไม่ได้วาด TooltipComponent พิเศษ
+        // Pass 1: พยายามหา Tooltip แบบมาตรฐานที่เกมอาจจะสร้างไว้
         for (int i = 0; i < elements.size(); i++) {
             var element = elements.get(i);
             if (element.left().isPresent()) {
                 net.minecraft.network.chat.FormattedText text = element.left().get();
                 String rawText = text.getString();
-                String strippedText = ChatFormatting.stripFormatting(rawText);
+                String strippedText = net.minecraft.ChatFormatting.stripFormatting(rawText);
                 if (strippedText == null) strippedText = rawText;
 
-                // ข้ามบรรทัด Vanilla เพื่อป้องกันเลขเบิ้ล
                 if (strippedText.contains("Damage Bonus") || strippedText.contains("โบนัสดาเมจ") ||
                     strippedText.contains("Attack Damage") || strippedText.contains("ดาเมจโจมตี")) {
                     continue;
@@ -112,25 +114,37 @@ public class TooltipHandler {
                 if (matcher.find()) {
                     try {
                         String numStr = matcher.group(1);
+                        String pelletStr = matcher.groupCount() >= 2 ? matcher.group(2) : null;
+                        
                         double baseDam = Double.parseDouble(numStr);
                         double packDamage = baseDam * multiplier;
                         String formattedDamage = String.format(java.util.Locale.US, packDamage % 1.0 == 0 ? "%.0f" : "%.1f", packDamage);
 
+                        String appendedText = " (" + formattedDamage;
+                        if (pelletStr != null) {
+                            appendedText += " × " + pelletStr;
+                        }
+                        appendedText += ")";
+
                         Component newComp;
                         if (text instanceof Component compText) {
-                            newComp = compText.copy().append(Component.literal(" (" + formattedDamage + ")").withStyle(ChatFormatting.GREEN));
+                            newComp = compText.copy().append(
+                                    Component.literal(appendedText).withStyle(ChatFormatting.GREEN)
+                            );
                         } else {
-                            newComp = Component.literal(rawText + " (" + formattedDamage + ")").withStyle(ChatFormatting.DARK_GREEN);
+                            newComp = Component.literal(rawText + appendedText).withStyle(ChatFormatting.DARK_GREEN);
                         }
                         
                         elements.set(i, com.mojang.datafixers.util.Either.left(newComp));
                         foundTaczDamage = true;
-                    } catch (Exception e) {}
+                    } catch (Exception e) {
+                        // ปล่อยผ่าน
+                    }
                 }
             }
         }
 
-        // Pass 2: เรียกใช้ระบบเจาะเกราะ (Reflection) สำหรับ TaCZ
+        // Pass 2: เรียกใช้ระบบ TaczIntegration ของเรา ถ้าไม่เจอดาเมจจาก Pass 1
         if (!foundTaczDamage) {
             TaczIntegration.tryAddTaczDamageTooltip(stack, multiplier, elements);
         }
