@@ -364,24 +364,46 @@ public class PackAPunchBlockEntity extends BlockEntity implements MenuProvider {
             return;
         }
 
-        // ── VALIDATION 4: Payment — check player inventory ───
+        // ── VALIDATION 4: Payment ───
         int nextLevel = currentLevel + 1;
-        net.minecraft.world.item.Item requiredItem = com.myname.packapunch.UpgradeConfig.getItemForLevel(nextLevel);
-        int cost = com.myname.packapunch.UpgradeConfig.getCostForLevel(nextLevel);
-        String itemName = requiredItem.getDescription().getString();
+        com.myname.packapunch.UpgradeTier tier = com.myname.packapunch.UpgradeConfig.getTier(nextLevel);
+        int cost = tier.getCost();
 
-        int available = 0;
-        Inventory playerInv = player.getInventory();
-        for (int i = 0; i < playerInv.getContainerSize(); i++) {
-            ItemStack stack = playerInv.getItem(i);
-            if (stack.is(requiredItem)) {
-                available += stack.getCount();
+        boolean canAfford = false;
+        String requirementName = "";
+
+        switch (tier.getCurrencyType()) {
+            case ITEM -> {
+                net.minecraft.world.item.Item requiredItem = com.myname.packapunch.UpgradeConfig.getItemForLevel(nextLevel);
+                requirementName = requiredItem.getDescription().getString();
+                int available = 0;
+                Inventory playerInv = player.getInventory();
+                for (int i = 0; i < playerInv.getContainerSize(); i++) {
+                    ItemStack stack = playerInv.getItem(i);
+                    if (stack.is(requiredItem)) {
+                        available += stack.getCount();
+                    }
+                }
+                canAfford = available >= cost;
+            }
+            case SCOREBOARD -> {
+                requirementName = tier.getId() + " (Score)";
+                net.minecraft.world.scores.Scoreboard scoreboard = player.getScoreboard();
+                net.minecraft.world.scores.Objective objective = scoreboard.getObjective(tier.getId());
+                if (objective != null && scoreboard.hasPlayerScore(player.getScoreboardName(), objective)) {
+                    net.minecraft.world.scores.Score score = scoreboard.getOrCreatePlayerScore(player.getScoreboardName(), objective);
+                    canAfford = score.getScore() >= cost;
+                }
+            }
+            case XP -> {
+                requirementName = "Levels";
+                canAfford = player.experienceLevel >= cost;
             }
         }
 
-        if (available < cost) {
+        if (!canAfford) {
             sendHint(player,
-                    "× Need " + cost + " " + itemName + " for Level " + nextLevel + "!",
+                    "× Need " + cost + " " + requirementName + " for Level " + nextLevel + "!",
                     ChatFormatting.RED);
             return;
         }
@@ -390,14 +412,31 @@ public class PackAPunchBlockEntity extends BlockEntity implements MenuProvider {
         // ALL VALIDATIONS PASSED — perform the upgrade atomically
         // ────────────────────────────────────────────────────────
 
-        // STEP 1: Consume items from player inventory
-        int remainingToConsume = cost;
-        for (int i = 0; i < playerInv.getContainerSize() && remainingToConsume > 0; i++) {
-            ItemStack stack = playerInv.getItem(i);
-            if (stack.is(requiredItem)) {
-                int take = Math.min(stack.getCount(), remainingToConsume);
-                stack.shrink(take);
-                remainingToConsume -= take;
+        // STEP 1: Consume cost
+        switch (tier.getCurrencyType()) {
+            case ITEM -> {
+                net.minecraft.world.item.Item requiredItem = com.myname.packapunch.UpgradeConfig.getItemForLevel(nextLevel);
+                int remainingToConsume = cost;
+                Inventory playerInv = player.getInventory();
+                for (int i = 0; i < playerInv.getContainerSize() && remainingToConsume > 0; i++) {
+                    ItemStack stack = playerInv.getItem(i);
+                    if (stack.is(requiredItem)) {
+                        int take = Math.min(stack.getCount(), remainingToConsume);
+                        stack.shrink(take);
+                        remainingToConsume -= take;
+                    }
+                }
+            }
+            case SCOREBOARD -> {
+                net.minecraft.world.scores.Scoreboard scoreboard = player.getScoreboard();
+                net.minecraft.world.scores.Objective objective = scoreboard.getObjective(tier.getId());
+                if (objective != null) {
+                    net.minecraft.world.scores.Score score = scoreboard.getOrCreatePlayerScore(player.getScoreboardName(), objective);
+                    score.setScore(score.getScore() - cost);
+                }
+            }
+            case XP -> {
+                player.giveExperienceLevels(-cost);
             }
         }
 
