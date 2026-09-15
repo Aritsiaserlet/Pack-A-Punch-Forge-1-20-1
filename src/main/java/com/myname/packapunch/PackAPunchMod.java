@@ -44,5 +44,14 @@ public class PackAPunchMod {
         event.enqueueWork(() -> {
             ModNetworking.register();
         });
+        net.minecraftforge.common.MinecraftForge.EVENT_BUS.addListener(this::onPlayerJoin);
+    }
+
+    private void onPlayerJoin(net.minecraftforge.event.entity.player.PlayerEvent.PlayerLoggedInEvent event) {
+        if (event.getEntity() instanceof net.minecraft.server.level.ServerPlayer serverPlayer) {
+            java.util.List<String> upgrades = new java.util.ArrayList<>(com.myname.packapunch.config.ModConfig.UPGRADES.get());
+            ModNetworking.INSTANCE.send(net.minecraftforge.network.PacketDistributor.PLAYER.with(() -> serverPlayer), 
+                new com.myname.packapunch.network.ClientboundSyncConfigPacket(upgrades));
+        }
     }
 }

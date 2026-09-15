@@ -26,5 +26,9 @@ public class ModNetworking {
                 ServerboundUpgradePacket::encode,
                 ServerboundUpgradePacket::decode,
                 ServerboundUpgradePacket::handle);
+        INSTANCE.registerMessage(id(), ClientboundSyncConfigPacket.class,
+                ClientboundSyncConfigPacket::encode,
+                ClientboundSyncConfigPacket::decode,
+                ClientboundSyncConfigPacket::handle);
     }
 }
